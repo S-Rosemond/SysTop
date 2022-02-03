@@ -1,0 +1,18 @@
+{
+  "name": "SysTop",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "start": "electron .",
+    "dev": "nodemon --exec electron ."
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "electron": "^16.0.7",
+    "node-os-utils": "^1.3.6",
+    "nodemon": "^2.0.15"
+  }
+}
