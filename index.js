@@ -1,9 +1,12 @@
+"use strict";
+
+process.env.NODE_ENV = "development";
 const { app, BrowserWindow, Menu } = require("electron");
 const { join } = require("path");
 const Store = require("./store");
 
 const isMac = process.platform === "darwin";
-isDev = process.env.NODE_ENV !== "production";
+const isDev = process.env.NODE_ENV !== "production";
 
 const storeConfig = {
   configName: "user-settings",

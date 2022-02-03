@@ -1,8 +1,10 @@
+"use strict";
+
 const { contextBridge, ipcRenderer } = require("electron");
 const path = require("path");
 const os = require("os");
 const osu = require("node-os-utils");
-const osuOS = osu.os;
+// const osuOS = osu.os;
 const cpu = osu.cpu;
 const mem = osu.mem;
 

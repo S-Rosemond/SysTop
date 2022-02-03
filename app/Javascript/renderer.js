@@ -1,3 +1,5 @@
+"use strict";
+
 const alertFrequency = document.getElementById("alert-frequency");
 const cpuOverload = document.getElementById("cpu-overload");
 const cpuModel = document.getElementById("cpu-model");
