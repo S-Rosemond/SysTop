@@ -1,7 +1,8 @@
 "use strict";
 
 process.env.NODE_ENV = "development";
-const { app, BrowserWindow, Menu } = require("electron");
+const { app, BrowserWindow, Menu, Tray } = require("electron");
+const { ipcMain } = require("electron/main");
 const { join } = require("path");
 const Store = require("./store");
 
@@ -21,6 +22,7 @@ const storeConfig = {
 const storage = new Store(storeConfig);
 
 let win = null;
+let tray = null;
 
 function createMenu() {
   const menu = [
@@ -85,18 +87,49 @@ function createWindow(props = defaultProps, url = defaultPath) {
   win.on("ready-to-show", win.show);
 }
 
+function createTray() {
+  const icon = join(__dirname, "app", "assets", "icons", "tray_icon.png");
+  tray = new Tray(icon);
+  const contextMenu = Menu.buildFromTemplate([
+    { label: "Show", click: () => win.show() },
+    { label: "Quit", click: () => app.quit() },
+  ]);
+  tray.setToolTip("SysTop");
+  tray.setContextMenu(contextMenu);
+}
+
 app.on("ready", () => {
   createWindow(newProps);
   createMenu();
+  createTray();
 
   win.webContents.on("dom-ready", () => {
     win.webContents.send("get:settings", storage.get("settings"));
   });
+
+  tray.on("click", () => {
+    if (win.isVisible()) {
+      win.hide();
+    } else {
+      win.show();
+    }
+  });
+
   win.on("closed", () => (win = null));
 });
 
 app.on("activate", () => {
   if (BrowserWindow.getAllWindows().length === 0) createWindow();
+});
+
+ipcMain.on("save:settings", (event, settings) => {
+  storage.set("settings", settings);
+  win.webContents.send("get:settings", storage.get("settings"));
+  win.webContents.send("show:alert", "Settings saved");
+});
+
+ipcMain.on("getUpdate:settings", (event, settings) => {
+  win.webContents.send("getUpdate:settings", storage.get("settings"));
 });
 
 app.on("window-all-closed", () => {

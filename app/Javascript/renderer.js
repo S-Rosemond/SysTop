@@ -1,14 +1,15 @@
 "use strict";
 
 const alertFrequency = document.getElementById("alert-frequency");
-const cpuOverload = document.getElementById("cpu-overload");
-const cpuModel = document.getElementById("cpu-model");
-const cpuUsage = document.getElementById("cpu-usage");
-const cpuFree = document.getElementById("cpu-free");
-const cpuProgress = document.getElementById("cpu-progress");
-const sysUptime = document.getElementById("sys-uptime");
 const computerName = document.getElementById("comp-name");
+const cpuFree = document.getElementById("cpu-free");
+const cpuModel = document.getElementById("cpu-model");
+const cpuOverload = document.getElementById("cpu-overload");
+const cpuProgress = document.getElementById("cpu-progress");
+const cpuUsage = document.getElementById("cpu-usage");
+const formSettings = document.getElementById("settings-form");
 const os = document.getElementById("os");
+const sysUptime = document.getElementById("sys-uptime");
 const totalMemory = document.getElementById("mem-total");
 
 async function getTotalMemoryInMb() {
@@ -40,13 +41,39 @@ os.innerText = `${window.api.osType()} ${window.api.osArch()}`;
 // Total Memory
 getTotalMemoryInMb();
 
+// show alert
+function showAlert(msg) {
+  const alert = document.getElementById("alert");
+  alert.classList.remove("hide");
+  alert.classList.add("alert");
+  alert.innerText = msg;
+
+  setTimeout(() => {
+    alert.classList.remove("alert");
+    alert.classList.add("hide");
+  }, 3000);
+}
+
 // Ipc Renderer
 window.api.getDefaultSettings(cpuOverload, alertFrequency);
+window.api.showAlert(showAlert);
+
+// submit settings
+formSettings.addEventListener("submit", (event) => {
+  event.preventDefault();
+
+  const formData = {
+    cpuOverload: cpuOverload.value,
+    alertFrequency: alertFrequency.value,
+  };
+
+  window.api.ipcRenderer.send("save:settings", formData);
+});
 
 // Run every 2 seconds
 setInterval(() => {
   window.api.getCpuUsage(cpuUsage);
   window.api.getCpuFree(cpuFree);
-  window.api.styleCpuProgress(cpuProgress, 80);
+  window.api.styleCpuProgress(cpuProgress);
   convertFromTime();
 }, 2000);

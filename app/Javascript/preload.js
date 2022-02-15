@@ -1,12 +1,11 @@
 "use strict";
 
 const { contextBridge, ipcRenderer } = require("electron");
-const path = require("path");
 const os = require("os");
 const osu = require("node-os-utils");
-// const osuOS = osu.os;
 const cpu = osu.cpu;
 const mem = osu.mem;
+const Store = require("../../store");
 
 // could add style parameter to set the progress bar
 async function getCpuProcess(domElement, processName) {
@@ -37,13 +36,14 @@ function checkLastNotification(frequency) {
 }
 
 // Separating the functions to make it easier to read
-async function setUsageStyle(domElement, overload) {
-  // 1000 * 60 * 60;  1 hour
-  //1000 * 60 * 5;  5 minutes
-  const inDev = 1000 * 30; // 30 seconds
+async function setUsageStyle(domElement, overload, frequency) {
+  // 1000 * 60 * 60; 1 hour
+  // 1000 * 60 ; 1 minutes
 
-  const frequency = inDev;
-  const notified = checkLastNotification(frequency);
+  const newFrequency = 1000 * 60 * frequency;
+
+  // const frequency = inDev;
+  const notified = checkLastNotification(newFrequency);
 
   const value = await cpu.usage();
 
@@ -75,14 +75,21 @@ const API = {
     getCpuProcess(domElement, processName),
   getCpuFree: (domElement, processName = "free") =>
     getCpuProcess(domElement, processName),
-  styleCpuProgress: (domElement, overload) =>
-    setUsageStyle(domElement, overload),
+  styleCpuProgress: (domElement) => {
+    // this works and no memory leak message
+    ipcRenderer.send("getUpdate:settings");
+    ipcRenderer.once("getUpdate:settings", (event, settings) => {
+      setUsageStyle(domElement, settings.cpuOverload, settings.alertFrequency);
+    });
+  },
   ipcRenderer,
   getDefaultSettings: (cpuOverload, alertFrequency) =>
     ipcRenderer.on("get:settings", (event, settings) => {
       cpuOverload.value = settings.cpuOverload;
       alertFrequency.value = settings.alertFrequency;
     }),
+  showAlert: (callback) =>
+    ipcRenderer.on("show:alert", (event, options) => callback(options)),
 };
 
 contextBridge.exposeInMainWorld("api", API);
