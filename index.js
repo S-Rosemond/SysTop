@@ -24,6 +24,10 @@ const storage = new Store(storeConfig);
 let win = null;
 let tray = null;
 
+function buildMenuTemplate(menuTemplate) {
+  return Menu.buildFromTemplate(menuTemplate);
+}
+
 function createMenu() {
   const menu = [
     {
@@ -52,7 +56,7 @@ function createMenu() {
     },
   ];
 
-  const mainMenu = Menu.buildFromTemplate(menu);
+  const mainMenu = buildMenuTemplate(menu);
   Menu.setApplicationMenu(mainMenu);
 }
 
@@ -90,10 +94,18 @@ function createWindow(props = defaultProps, url = defaultPath) {
 function createTray() {
   const icon = join(__dirname, "app", "assets", "icons", "tray_icon.png");
   tray = new Tray(icon);
-  const contextMenu = Menu.buildFromTemplate([
+  const trayMenu = [
     { label: "Show", click: () => win.show() },
-    { label: "Quit", click: () => app.quit() },
-  ]);
+    {
+      label: "Quit",
+      click: () => {
+        app.isQuitting = true;
+        app.quit();
+      },
+    },
+  ];
+  const contextMenu = buildMenuTemplate(trayMenu);
+
   tray.setToolTip("SysTop");
   tray.setContextMenu(contextMenu);
 }
@@ -107,14 +119,43 @@ app.on("ready", () => {
     win.webContents.send("get:settings", storage.get("settings"));
   });
 
+  let trayOpen = false;
+
   tray.on("click", () => {
-    if (win.isVisible()) {
-      win.hide();
-    } else {
-      win.show();
-    }
+    const popupMenu = Menu.buildFromTemplate([
+      {
+        label: "Quit",
+        click: () => {
+          app.isQuitting = true;
+          app.quit();
+        },
+      },
+    ]);
+
+    if (win.isVisible()) win.hide();
+
+    // solution for smooth tray popup transitions
+    setTimeout(() => {
+      if (trayOpen === false && !win.isVisible()) {
+        tray.popUpContextMenu(popupMenu);
+        trayOpen = true;
+      } else if (trayOpen) trayOpen = false;
+      else trayOpen = true;
+    }, 500);
   });
 
+  tray.on("double-click", () => {
+    win.show();
+  });
+
+  win.on("close", (event) => {
+    if (!app.isQuitting) {
+      event.preventDefault();
+      app.isQuitting = true;
+    }
+    win.hide();
+    // need dialog to confirm
+  });
   win.on("closed", () => (win = null));
 });
 
