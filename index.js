@@ -1,13 +1,11 @@
 "use strict";
 
 process.env.NODE_ENV = "development";
-const { app, BrowserWindow, Menu, Tray } = require("electron");
+const { app, BrowserWindow } = require("electron");
 const { ipcMain } = require("electron/main");
-const { join } = require("path");
 const Store = require("./store");
-
-const isMac = process.platform === "darwin";
-const isDev = process.env.NODE_ENV !== "production";
+const { createWindow, newProps } = require("./mainWindow");
+const { createMenu, createTray, popupMenu } = require("./menu");
 
 const storeConfig = {
   configName: "user-settings",
@@ -24,124 +22,28 @@ const storage = new Store(storeConfig);
 let win = null;
 let tray = null;
 
-function buildMenuTemplate(menuTemplate) {
-  return Menu.buildFromTemplate(menuTemplate);
-}
-
-function createMenu() {
-  const menu = [
-    {
-      label: "Window",
-      submenu: [
-        { role: "reload" },
-        { role: "forceReload" },
-        { role: "toggleDevTools" },
-        { type: "separator" },
-        isMac ? { role: "close" } : { role: "quit" },
-      ],
-    },
-    {
-      label: "Edit",
-      submenu: [
-        { role: "cut" },
-        { role: "copy" },
-        { role: "paste" },
-        { type: "separator" },
-        { role: "selectAll" },
-      ],
-    },
-    {
-      label: "View",
-      submenu: [{ role: "minimize" }],
-    },
-  ];
-
-  const mainMenu = buildMenuTemplate(menu);
-  Menu.setApplicationMenu(mainMenu);
-}
-
-const defaultProps = {
-  width: 500,
-  height: 600,
-  resizable: false,
-  show: false,
-  webPreferences: {
-    preload: join(__dirname, "app/Javascript/preload.js"),
-  },
-};
-
-const sysTopProps = {
-  title: "SysTop",
-  width: isDev ? 700 : 355,
-  height: 500,
-  icon: "./app/assets/icons/icon.png",
-  resizable: isDev ? true : false,
-  backgroundColor: "white",
-};
-
-const newProps = Object.assign({}, defaultProps, sysTopProps);
-
-const defaultPath = "./app/html/index.html";
-
-function createWindow(props = defaultProps, url = defaultPath) {
-  win = new BrowserWindow(props);
-
-  win.loadFile(url);
-
-  win.on("ready-to-show", win.show);
-}
-
-function createTray() {
-  const icon = join(__dirname, "app", "assets", "icons", "tray_icon.png");
-  tray = new Tray(icon);
-  const trayMenu = [
-    { label: "Show", click: () => win.show() },
-    {
-      label: "Quit",
-      click: () => {
-        app.isQuitting = true;
-        app.quit();
-      },
-    },
-  ];
-  const contextMenu = buildMenuTemplate(trayMenu);
-
-  tray.setToolTip("SysTop");
-  tray.setContextMenu(contextMenu);
-}
-
 app.on("ready", () => {
-  createWindow(newProps);
+  win = createWindow(newProps);
   createMenu();
-  createTray();
+  tray = createTray(win);
 
   win.webContents.on("dom-ready", () => {
     win.webContents.send("get:settings", storage.get("settings"));
   });
 
-  let trayOpen = false;
+  let trayPopupIsOpen = false;
 
   tray.on("click", () => {
-    const popupMenu = Menu.buildFromTemplate([
-      {
-        label: "Quit",
-        click: () => {
-          app.isQuitting = true;
-          app.quit();
-        },
-      },
-    ]);
-
+    // solution for smooth tray popup on double click
+    // found electron methods for popupMenu, instead of rebuilding the menu each subsequent click
     if (win.isVisible()) win.hide();
-
-    // solution for smooth tray popup transitions
-    setTimeout(() => {
-      if (trayOpen === false && !win.isVisible()) {
-        tray.popUpContextMenu(popupMenu);
-        trayOpen = true;
-      } else if (trayOpen) trayOpen = false;
-      else trayOpen = true;
-    }, 500);
+    else if (trayPopupIsOpen === false && !win.isVisible()) {
+      popupMenu.popup();
+      trayPopupIsOpen = true;
+    } else {
+      trayPopupIsOpen = false;
+      popupMenu.closePopup();
+    }
   });
 
   tray.on("double-click", () => {
@@ -160,7 +62,7 @@ app.on("ready", () => {
 });
 
 app.on("activate", () => {
-  if (BrowserWindow.getAllWindows().length === 0) createWindow();
+  if (BrowserWindow.getAllWindows().length === 0) createWindow(win, newProps);
 });
 
 ipcMain.on("save:settings", (event, settings) => {
