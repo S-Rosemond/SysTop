@@ -35,7 +35,8 @@ app.on("ready", () => {
 
   tray.on("click", () => {
     // solution for smooth tray popup on double click
-    // found electron methods for popupMenu, instead of rebuilding the menu each subsequent click
+    // STEAM has the same issue, popup is at cursor position
+    // { x: tray.getBounds().x, y: tray.getBounds().y } will set at end of tray
     if (win.isVisible()) win.hide();
     else if (trayPopupIsOpen === false && !win.isVisible()) {
       popupMenu.popup();
